@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Document Picture-in-Picture Test (No Escaping Needed)</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 14px; font-size: 16px; cursor: pointer; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    #status { margin-top: 12px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  </style>
+</head>
+<body>
+  <h2>Document Picture-in-Picture (Test)</h2>
+
+  <div class="row">
+    <button id="open">Open Document PiP</button>
+    <button id="close" disabled>Close PiP</button>
+  </div>
+
+  <div id="status"></div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const openBtn = document.getElementById("open");
+    const closeBtn = document.getElementById("close");
+
+    let pipWin = null;
+    let tickInterval = null;
+
+    const supported = () =>
+      "documentPictureInPicture" in window &&
+      window.documentPictureInPicture &&
+      typeof window.documentPictureInPicture.requestWindow === "function";
+
+    const log = (msg) => (statusEl.textContent = msg);
+
+    const stopTicker = () => {
+      if (tickInterval) clearInterval(tickInterval);
+      tickInterval = null;
+    };
+
+    window.addEventListener("message", (e) => {
+      if (e?.data?.type === "pipPing") {
+        log("Received ping from PiP at " + new Date(e.data.at).toLocaleTimeString());
+      }
+    });
+
+    function renderPiPUI(win) {
+      const doc = win.document;
+
+      // No nested <script> tags, so nothing to escape.
+      doc.head.innerHTML = `
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>PiP Window</title>
+        <style>
+          body {
+            margin: 0;
+            padding: 12px;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+            background: #111;
+            color: #fff;
+          }
+          .card {
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 12px;
+          }
+          .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+          button {
+            padding: 8px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.06);
+            color: white;
+          }
+          #time { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+          p { margin: 10px 0 12px 0; opacity: 0.9; }
+        </style>
+      `;
+
+      doc.body.innerHTML = `
+        <div class="card">
+          <div class="row" style="justify-content: space-between;">
+            <strong>Document PiP</strong>
+            <span id="time"></span>
+          </div>
+
+          <p>If you can see this floating window, Document PiP is working.</p>
+
+          <div class="row">
+            <button id="ping">Ping main page</button>
+            <button id="closeBtn">Close</button>
+          </div>
+        </div>
+      `;
+
+      // Wire events from the main page (no PiP scripts).
+      doc.getElementById("ping").addEventListener("click", () => {
+        window.postMessage({ type: "pipPing", at: Date.now() }, "*");
+      });
+
+      doc.getElementById("closeBtn").addEventListener("click", () => win.close());
+
+      // Start time ticker
+      const timeEl = doc.getElementById("time");
+      stopTicker();
+      tickInterval = setInterval(() => {
+        if (!pipWin || pipWin.closed) { stopTicker(); return; }
+        timeEl.textContent = new Date().toLocaleTimeString();
+      }, 1000);
+    }
+
+    openBtn.addEventListener("click", async () => {
+      if (!supported()) {
+        log("Not supported. Use Chrome/Edge (Chromium). Safari/Firefox do not support Document PiP.");
+        return;
+      }
+
+      if (pipWin && !pipWin.closed) {
+        pipWin.focus?.();
+        return;
+      }
+
+      try {
+        pipWin = await documentPictureInPicture.requestWindow({ width: 360, height: 220 });
+
+        renderPiPUI(pipWin);
+
+        pipWin.addEventListener("pagehide", () => {
+          stopTicker();
+          closeBtn.disabled = true;
+          log("PiP closed.");
+        });
+
+        closeBtn.disabled = false;
+        log("PiP opened successfully.");
+      } catch (err) {
+        log("Failed to open PiP:\n" + (err?.message || String(err)));
+      }
+    });
+
+    closeBtn.addEventListener("click", () => {
+      if (pipWin && !pipWin.closed) pipWin.close();
+    });
+
+    log(supported()
+      ? "Supported. Click 'Open Document PiP'."
+      : "Not supported here. Use Chrome/Edge (Chromium)."
+    );
+  </script>
+</body>
+</html>
