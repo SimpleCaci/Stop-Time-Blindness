@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Task Timer + Block Progress PiP + Logs (Safari-friendly)</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 18px; max-width: 980px; }
+    .card { border: 1px solid rgba(127,127,127,.35); border-radius: 16px; padding: 14px; margin-bottom: 14px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .row.tight { gap: 8px; }
+    .col { display: flex; flex-direction: column; gap: 8px; }
+    .label { font-size: 12px; opacity: .8; margin-left: 2px; }
+    .pill { padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(127,127,127,.55); font-size: 12px; }
+    .hint { opacity: .8; font-size: 12px; line-height: 1.35; margin: 0; }
+    .spacer { height: 8px; }
+
+    button, input, select, textarea {
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(127,127,127,.55);
+      background: transparent;
+      font: inherit;
+    }
+    button { cursor: pointer; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    textarea { width: 100%; min-height: 76px; resize: vertical; }
+
+    #time { font-variant-numeric: tabular-nums; font-size: 56px; margin: 6px 0 0; }
+    #task { width: min(640px, 100%); }
+    #mins, #blocks { width: 120px; }
+    #confirmReset { width: 220px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid rgba(127,127,127,.25); padding: 8px 6px; vertical-align: top; }
+    th { text-align: left; opacity: .85; font-weight: 600; }
+    .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    /* Preview */
+    #previewCanvas {
+      width: 100%;
+      max-width: 920px;
+      height: auto;
+      border-radius: 14px;
+      border: 1px solid rgba(127,127,127,.25);
+    }
+
+    /* IMPORTANT for Safari: keep canvas/video renderable */
+    #pipCanvas {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      width: 420px;
+      height: 240px;
+      opacity: 0.01;
+      pointer-events: none;
+    }
+    #pipVideo {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      width: 2px;
+      height: 2px;
+      opacity: 0.01;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Controls -->
+  <div class="card">
+    <div class="row" style="justify-content: space-between;">
+      <div class="col" style="flex:1; min-width: 260px;">
+        <div class="label">Current task (shows in PiP + used for logging)</div>
+        <input id="task" placeholder="Current task" value="Deep work" />
+      </div>
+
+      <div class="col">
+        <div class="label">Target minutes</div>
+        <div class="row tight">
+          <input id="mins" type="number" min="1" step="1" value="25" />
+          <button id="set">Set</button>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="label">Blocks</div>
+        <input id="blocks" type="number" min="6" max="60" step="1" value="24" />
+      </div>
+
+      <div class="col">
+        <div class="label">Layout</div>
+        <select id="layout">
+          <option value="card" selected>Card</option>
+          <option value="bar">Wide bar</option>
+        </select>
+      </div>
+
+      <div class="col">
+        <div class="label">Mode</div>
+        <select id="mode">
+          <option value="stopwatch" selected>Stopwatch (count up)</option>
+          <option value="countdown">Countdown to target</option>
+          <option value="pomodoro">Pomodoro (25/5 loop)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="row">
+      <button id="start">Start</button>
+      <button id="pause" disabled>Pause</button>
+      <button id="finish">Finish + Log</button>
+
+      <!-- Hard reset: require typed phrase -->
+      <input id="confirmReset" placeholder='Type RESET then click Reset' />
+      <button id="reset" disabled>Reset</button>
+
+      <span class="pill" id="modePill">Mode: stopwatch</span>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="row">
+      <button id="prepare">Prepare PiP</button>
+      <button id="enter" disabled>Enter PiP</button>
+      <span id="status" class="pill">Status: idle</span>
+      <button id="downloadCsv">Download logs (CSV)</button>
+      <button id="downloadJson">Download logs (JSON)</button>
+      <button id="clearLogs">Clear logs</button>
+    </div>
+
+    <div class="spacer"></div>
+    <p class="hint">
+      Logs are stored in your browser (localStorage). “Finish + Log” writes an entry with start/end timestamps, elapsed time, target time, and whether you went over.
+    </p>
+  </div>
+
+  <!-- On-page display -->
+  <div class="card">
+    <div class="label">On-page display</div>
+    <div id="time">00:00.0</div>
+    <p class="hint" id="subHint">Stopwatch time. Progress blocks fill as elapsed approaches your target.</p>
+  </div>
+
+  <!-- Notes (optional) -->
+  <div class="card">
+    <div class="label">Optional notes for this task (included in log)</div>
+    <textarea id="notes" placeholder="What did you do? Any context?"></textarea>
+  </div>
+
+  <!-- Preview -->
+  <div class="card">
+    <div class="row" style="justify-content: space-between;">
+      <div class="label">Preview (what PiP is rendering)</div>
+      <span class="pill">Live</span>
+    </div>
+    <canvas id="previewCanvas" width="840" height="240"></canvas>
+  </div>
+
+  <!-- Logs table -->
+  <div class="card">
+    <div class="row" style="justify-content: space-between;">
+      <div class="label">Task logs</div>
+      <span class="pill" id="logPill">0 entries</span>
+    </div>
+    <div class="spacer"></div>
+    <div style="overflow:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Mode</th>
+            <th>Started</th>
+            <th>Ended</th>
+            <th>Elapsed</th>
+            <th>Target</th>
+            <th>Over</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PiP -->
+  <canvas id="pipCanvas"></canvas>
+  <video id="pipVideo" playsinline muted></video>
+
+  <script>
+    // ---------------- Elements ----------------
+    const taskInput = document.getElementById("task");
+    const minsInput = document.getElementById("mins");
+    const blocksInput = document.getElementById("blocks");
+    const layoutSel = document.getElementById("layout");
+    const modeSel = document.getElementById("mode");
+    const notesEl = document.getElementById("notes");
+
+    const startBtn = document.getElementById("start");
+    const pauseBtn = document.getElementById("pause");
+    const finishBtn = document.getElementById("finish");
+    const confirmReset = document.getElementById("confirmReset");
+    const resetBtn = document.getElementById("reset");
+    const setBtn   = document.getElementById("set");
+
+    const prepareBtn = document.getElementById("prepare");
+    const enterBtn = document.getElementById("enter");
+    const statusEl = document.getElementById("status");
+    const timeEl = document.getElementById("time");
+    const modePill = document.getElementById("modePill");
+    const subHint = document.getElementById("subHint");
+
+    const downloadCsvBtn = document.getElementById("downloadCsv");
+    const downloadJsonBtn = document.getElementById("downloadJson");
+    const clearLogsBtn = document.getElementById("clearLogs");
+
+    const logBody = document.getElementById("logBody");
+    const logPill = document.getElementById("logPill");
+
+    // preview
+    const previewCanvas = document.getElementById("previewCanvas");
+    const pctx = previewCanvas.getContext("2d", { alpha: false });
+
+    // PiP
+    const pipCanvas = document.getElementById("pipCanvas");
+    const ctx = pipCanvas.getContext("2d", { alpha: false });
+    const video = document.getElementById("pipVideo");
+
+    // ---------------- State ----------------
+    let running = false;
+    let t0 = 0;               // perf.now at last start/resume
+    let elapsed = 0;          // ms accumulated
+    let targetMs = 25 * 60 * 1000;
+    let sessionStartWall = null; // Date.now when started first time (for logging)
+
+    // pomodoro
+    const POMO_WORK_MS = 25 * 60 * 1000;
+    const POMO_BREAK_MS = 5 * 60 * 1000;
+    let pomoPhase = "work"; // work|break
+    let pomoPhaseStart = 0; // Date.now
+
+    // PiP state
+    let stream = null;
+    let drawRAF = 0;
+    let prepared = false;
+
+    // progress blocks
+    const BLOCK_GAP = 3;
+
+    // logs
+    const LOG_KEY = "task_timer_logs_v1";
+    let logs = loadLogs();
+
+    // ---------------- Utils ----------------
+    function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+    function fmt(ms) {
+      const total = ms / 1000;
+      const m = Math.floor(total / 60);
+      const s = total - m * 60;
+      const ss = Math.floor(s);
+      const tenths = Math.floor((s - ss) * 10);
+      return `${String(m).padStart(2,"0")}:${String(ss).padStart(2,"0")}.${tenths}`;
+    }
+
+    function fmtHM(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      if (h > 0) return `${h}h ${m}m ${s}s`;
+      if (m > 0) return `${m}m ${s}s`;
+      return `${s}s`;
+    }
+
+    function isoLocal(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString();
+    }
+
+    function nowElapsed() {
+      return running ? (elapsed + (performance.now() - t0)) : elapsed;
+    }
+
+    function getBlocks() {
+      const n = Math.floor(Number(blocksInput.value || 24));
+      return Math.max(6, Math.min(60, n));
+    }
+
+    function supportsPiP() {
+      return !!document.pictureInPictureEnabled &&
+             typeof video.requestPictureInPicture === "function" &&
+             typeof pipCanvas.captureStream === "function";
+    }
+
+    function setCanvasResolution() {
+      const cssW = 420, cssH = 240;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+      pipCanvas.width  = Math.round(cssW * dpr);
+      pipCanvas.height = Math.round(cssH * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    setCanvasResolution();
+    window.addEventListener("resize", setCanvasResolution);
+
+    function waitForFirstVideoFrame(v) {
+      if (typeof v.requestVideoFrameCallback === "function") {
+        return new Promise(res => v.requestVideoFrameCallback(() => res()));
+      }
+      return new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+    }
+
+    function downloadText(filename, text) {
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function toCSV(rows) {
+      const esc = (s) => {
+        const str = String(s ?? "");
+        if (/[,"\n]/.test(str)) return `"${str.replace(/"/g,'""')}"`;
+        return str;
+      };
+      const headers = [
+        "task","mode","layout","started_at","ended_at",
+        "elapsed_ms","elapsed_human","target_ms","target_human","over_ms","over_human",
+        "notes"
+      ];
+      const lines = [headers.join(",")];
+      for (const r of rows) {
+        lines.push(headers.map(h => esc(r[h])).join(","));
+      }
+      return lines.join("\n");
+    }
+
+    // ---------------- Logs persistence ----------------
+    function loadLogs() {
+      try {
+        const raw = localStorage.getItem(LOG_KEY);
+        if (!raw) return [];
+        const arr = JSON.parse(raw);
+        return Array.isArray(arr) ? arr : [];
+      } catch { return []; }
+    }
+
+    function saveLogs() {
+      localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+      renderLogs();
+    }
+
+    function addLog(entry) {
+      logs.unshift(entry);
+      saveLogs();
+    }
+
+    function renderLogs() {
+      logPill.textContent = `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`;
+      logBody.innerHTML = "";
+      for (const r of logs) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHTML(r.task)}</td>
+          <td>${escapeHTML(r.mode)}</td>
+          <td class="mono">${escapeHTML(r.started_at)}</td>
+          <td class="mono">${escapeHTML(r.ended_at)}</td>
+          <td class="mono">${escapeHTML(r.elapsed_human)}</td>
+          <td class="mono">${escapeHTML(r.target_human)}</td>
+          <td class="mono">${r.over_ms > 0 ? escapeHTML(r.over_human) : "—"}</td>
+          <td>${escapeHTML(r.notes || "")}</td>
+        `;
+        logBody.appendChild(tr);
+      }
+    }
+
+    function escapeHTML(s) {
+      return String(s ?? "")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    renderLogs();
+
+    // ---------------- Mode behaviors ----------------
+    function setTargetFromMinutes() {
+      const m = Math.max(1, Math.floor(Number(minsInput.value || 1)));
+      minsInput.value = String(m);
+      targetMs = m * 60 * 1000;
+    }
+
+    function getDisplayMs() {
+      const ms = nowElapsed();
+      const mode = modeSel.value;
+
+      if (mode === "stopwatch") return ms;
+
+      if (mode === "countdown") {
+        const remaining = Math.max(0, targetMs - ms);
+        return remaining;
+      }
+
+      // pomodoro: display remaining in current phase; auto-advance phases (no alerts)
+      const phaseDur = (pomoPhase === "work") ? POMO_WORK_MS : POMO_BREAK_MS;
+      const passed = Date.now() - pomoPhaseStart;
+      const remaining = Math.max(0, phaseDur - passed);
+
+      // auto switch if running
+      if (running && remaining === 0) {
+        pomoPhase = (pomoPhase === "work") ? "break" : "work";
+        pomoPhaseStart = Date.now();
+        return (pomoPhase === "work") ? POMO_WORK_MS : POMO_BREAK_MS;
+      }
+
+      return remaining;
+    }
+
+    function getProgressRatio() {
+      const mode = modeSel.value;
+
+      if (mode === "stopwatch") {
+        const ms = nowElapsed();
+        return targetMs > 0 ? clamp01(ms / targetMs) : 0;
+      }
+
+      if (mode === "countdown") {
+        const ms = nowElapsed();
+        return targetMs > 0 ? clamp01(ms / targetMs) : 0; // fill up as time passes
+      }
+
+      // pomodoro: fill within phase
+      const phaseDur = (pomoPhase === "work") ? POMO_WORK_MS : POMO_BREAK_MS;
+      const passed = running ? (Date.now() - pomoPhaseStart) : Math.min(phaseDur, Date.now() - pomoPhaseStart);
+      return clamp01(passed / phaseDur);
+    }
+
+    function updateModeText() {
+      const mode = modeSel.value;
+      if (mode === "stopwatch") {
+        modePill.textContent = "Mode: stopwatch";
+        subHint.textContent = "Stopwatch time. Blocks fill as elapsed approaches your target.";
+      } else if (mode === "countdown") {
+        modePill.textContent = "Mode: countdown";
+        subHint.textContent = "Countdown time. Blocks fill up as time passes toward the target.";
+      } else {
+        modePill.textContent = `Mode: pomodoro (${pomoPhase})`;
+        subHint.textContent = "Pomodoro time. Blocks fill across the current phase (work/break).";
+      }
+    }
+    updateModeText();
+
+    modeSel.addEventListener("change", () => {
+      // reset pomodoro phase tracking without wiping your elapsed stopwatch
+      if (modeSel.value === "pomodoro") {
+        pomoPhase = "work";
+        pomoPhaseStart = Date.now();
+      }
+      updateModeText();
+    });
+
+    // ---------------- Main UI loop ----------------
+    (function uiLoop() {
+      timeEl.textContent = fmt(getDisplayMs());
+      if (modeSel.value === "pomodoro") {
+        modePill.textContent = `Mode: pomodoro (${pomoPhase})`;
+      }
+      requestAnimationFrame(uiLoop);
+    })();
+
+    // ---------------- Hard reset gate ----------------
+    function updateResetGate() {
+      resetBtn.disabled = (confirmReset.value.trim().toUpperCase() !== "RESET");
+    }
+    confirmReset.addEventListener("input", updateResetGate);
+    updateResetGate();
+
+    // ---------------- Controls ----------------
+    startBtn.addEventListener("click", () => {
+      if (running) return;
+      running = true;
+      t0 = performance.now();
+
+      if (sessionStartWall === null) sessionStartWall = Date.now();
+
+      // Pomodoro needs its own wallclock phase start on first start
+      if (modeSel.value === "pomodoro" && !pomoPhaseStart) {
+        pomoPhase = "work";
+        pomoPhaseStart = Date.now();
+      } else if (modeSel.value === "pomodoro" && pomoPhaseStart === 0) {
+        pomoPhaseStart = Date.now();
+      }
+
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+    });
+
+    pauseBtn.addEventListener("click", () => {
+      if (!running) return;
+      elapsed = nowElapsed();
+      running = false;
+
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+    });
+
+    setBtn.addEventListener("click", () => {
+      setTargetFromMinutes();
+    });
+
+    resetBtn.addEventListener("click", () => {
+      // hard reset: only works if gate satisfied (button enabled)
+      running = false;
+      elapsed = 0;
+      sessionStartWall = null;
+      t0 = 0;
+
+      // reset pomodoro
+      pomoPhase = "work";
+      pomoPhaseStart = Date.now();
+
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+
+      // re-lock reset
+      confirmReset.value = "";
+      updateResetGate();
+    });
+
+    // Finish + Log
+    finishBtn.addEventListener("click", () => {
+      // Compute final elapsed for logging
+      const finalElapsed = nowElapsed();
+
+      // Stop session
+      running = false;
+      elapsed = finalElapsed;
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+
+      const startedAt = sessionStartWall ?? Date.now(); // if never started, treat as now
+      const endedAt = Date.now();
+
+      // Determine target for log depending on mode
+      let logTargetMs = targetMs;
+      if (modeSel.value === "pomodoro") {
+        logTargetMs = (pomoPhase === "work") ? POMO_WORK_MS : POMO_BREAK_MS;
+      }
+
+      const overMs = Math.max(0, finalElapsed - logTargetMs);
+
+      addLog({
+        task: (taskInput.value || "Task").trim() || "Task",
+        mode: modeSel.value,
+        layout: layoutSel.value,
+        started_at: isoLocal(startedAt),
+        ended_at: isoLocal(endedAt),
+        elapsed_ms: Math.round(finalElapsed),
+        elapsed_human: fmtHM(finalElapsed),
+        target_ms: Math.round(logTargetMs),
+        target_human: fmtHM(logTargetMs),
+        over_ms: Math.round(overMs),
+        over_human: fmtHM(overMs),
+        notes: (notesEl.value || "").trim()
+      });
+
+      // Prepare for next task (but do NOT reset automatically)
+      sessionStartWall = null;
+      notesEl.value = "";
+    });
+
+    // ---------------- Downloads / clear ----------------
+    downloadCsvBtn.addEventListener("click", () => {
+      const csv = toCSV(logs);
+      const stamp = new Date().toISOString().slice(0,19).replaceAll(":","-");
+      downloadText(`task-logs_${stamp}.csv`, csv);
+    });
+
+    downloadJsonBtn.addEventListener("click", () => {
+      const stamp = new Date().toISOString().slice(0,19).replaceAll(":","-");
+      downloadText(`task-logs_${stamp}.json`, JSON.stringify(logs, null, 2));
+    });
+
+    clearLogsBtn.addEventListener("click", () => {
+      const phrase = prompt('Type CLEAR to delete all logs:');
+      if ((phrase || "").trim().toUpperCase() !== "CLEAR") return;
+      logs = [];
+      localStorage.removeItem(LOG_KEY);
+      renderLogs();
+    });
+
+    // ---------------- Drawing ----------------
+    function drawBlockBar(g, x, y, w, h, fillRatio, blocks) {
+      g.fillStyle = "#2a2a2a";
+      g.fillRect(x, y, w, h);
+
+      const innerX = x + 3, innerY = y + 3;
+      const innerW = w - 6, innerH = h - 6;
+
+      const totalGap = BLOCK_GAP * (blocks - 1);
+      const blockW = (innerW - totalGap) / blocks;
+
+      const filled = Math.floor(clamp01(fillRatio) * blocks + 1e-9);
+
+      for (let i = 0; i < blocks; i++) {
+        const bx = innerX + i * (blockW + BLOCK_GAP);
+        g.fillStyle = (i < filled) ? "#7CFF7C" : "#444";
+        g.fillRect(bx, innerY, blockW, innerH);
+      }
+    }
+
+    function drawCardLayout(g, W, H) {
+      const task = (taskInput.value || "Task").slice(0, 44);
+      const blocks = getBlocks();
+      const ratio = getProgressRatio();
+      const displayMs = getDisplayMs();
+
+      g.fillStyle = "#111";
+      g.fillRect(0, 0, W, H);
+
+      g.fillStyle = "#1d1d1d";
+      g.fillRect(14, 14, W - 28, H - 28);
+
+      g.fillStyle = "#ddd";
+      g.font = "15px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      g.fillText(task, 28, 44);
+
+      g.fillStyle = "#aaa";
+      g.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+
+      let targetLabel = Math.round(targetMs / 60000) + " min";
+      if (modeSel.value === "pomodoro") targetLabel = (pomoPhase === "work") ? "25 min work" : "5 min break";
+      g.fillText(`Target: ${targetLabel}`, 28, 66);
+
+      drawBlockBar(g, 28, 76, W - 56, 18, ratio, blocks);
+
+      g.fillStyle = "#fff";
+      g.font = "56px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const text = fmt(displayMs);
+      const tw = g.measureText(text).width;
+      g.fillText(text, (W - tw) / 2, 160);
+
+      g.fillStyle = "#bbb";
+      g.font = "13px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const state = running ? "Running" : "Paused";
+      const pct = Math.round(ratio * 100);
+      g.fillText(`${state} • ${pct}%`, 28, 202);
+
+      // Over-target hint only makes sense for stopwatch/countdown target
+      if (modeSel.value !== "pomodoro" && nowElapsed() >= targetMs && targetMs > 0) {
+        g.fillStyle = "#ffdf7c";
+        g.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        const msg = "Target reached";
+        g.fillText(msg, W - 28 - g.measureText(msg).width, 202);
+      }
+    }
+
+    function drawBarLayout(g, W, H) {
+      const task = (taskInput.value || "Task").slice(0, 60);
+      const blocks = getBlocks();
+      const ratio = getProgressRatio();
+      const displayMs = getDisplayMs();
+
+      g.fillStyle = "#111";
+      g.fillRect(0, 0, W, H);
+
+      const pad = 14;
+      g.fillStyle = "#1d1d1d";
+      g.fillRect(pad, 54, W - pad*2, 132);
+
+      g.fillStyle = "#ddd";
+      g.font = "16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      g.fillText(task, pad + 16, 44);
+
+      g.fillStyle = "#fff";
+      g.font = "38px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      const text = fmt(displayMs);
+      const tw = g.measureText(text).width;
+      g.fillText(text, W - pad - 16 - tw, 105);
+
+      drawBlockBar(g, pad + 16, 126, W - (pad + 16)*2, 22, ratio, blocks);
+
+      g.fillStyle = "#bbb";
+      g.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+
+      let targetLabel = Math.round(targetMs / 60000) + "m";
+      if (modeSel.value === "pomodoro") targetLabel = (pomoPhase === "work") ? "25m work" : "5m break";
+
+      const state = running ? "Running" : "Paused";
+      const pct = Math.round(ratio * 100);
+      g.fillText(`${state} • ${pct}% • Target ${targetLabel}`, pad + 16, 170);
+    }
+
+    function drawTo(g, W, H) {
+      const layout = layoutSel.value;
+      if (layout === "bar") drawBarLayout(g, W, H);
+      else drawCardLayout(g, W, H);
+    }
+
+    function drawOnce() {
+      drawTo(ctx, 420, 240);
+      drawTo(pctx, 840, 240);
+    }
+
+    function drawLoop() {
+      drawOnce();
+      drawRAF = requestAnimationFrame(drawLoop);
+    }
+
+    // Start drawing immediately so preview stays live
+    drawLoop();
+
+    // ---------------- PiP lifecycle ----------------
+    function stopPiPOnly() {
+      prepared = false;
+      enterBtn.disabled = true;
+
+      if (document.pictureInPictureElement) {
+        document.exitPictureInPicture().catch(() => {});
+      }
+
+      if (stream) {
+        for (const tr of stream.getTracks()) tr.stop();
+        stream = null;
+      }
+
+      video.pause();
+      video.srcObject = null;
+      statusEl.textContent = "Status: idle";
+    }
+
+    document.addEventListener("leavepictureinpicture", stopPiPOnly);
+    window.addEventListener("pagehide", () => { stopPiPOnly(); });
+
+    prepareBtn.addEventListener("click", async () => {
+      try {
+        if (!supportsPiP()) throw new Error("PiP/captureStream not supported in this browser.");
+        if (prepared) { statusEl.textContent = "Status: already prepared"; return; }
+
+        statusEl.textContent = "Status: preparing…";
+
+        // critical: draw at least one frame BEFORE captureStream
+        drawOnce();
+
+        stream = pipCanvas.captureStream(30);
+
+        video.muted = true;
+        video.playsInline = true;
+        video.srcObject = stream;
+
+        await new Promise((res, rej) => {
+          const to = setTimeout(() => rej(new Error("Timeout waiting for loadedmetadata.")), 3000);
+          video.onloadedmetadata = () => { clearTimeout(to); res(); };
+        });
+
+        await video.play();
+        await waitForFirstVideoFrame(video);
+
+        prepared = true;
+        enterBtn.disabled = false;
+        statusEl.textContent = "Status: prepared";
+      } catch (e) {
+        stopPiPOnly();
+        alert(e?.message || String(e));
+      }
+    });
+
+    enterBtn.addEventListener("click", async () => {
+      try {
+        if (!prepared) throw new Error("Prepare PiP first.");
+        await video.requestPictureInPicture();
+        statusEl.textContent = "Status: in PiP";
+      } catch (e) {
+        alert(e?.message || String(e));
+      }
+    });
+
+    // Keep reset gate honest if user focuses away
+    window.addEventListener("blur", () => { updateResetGate(); });
+
+    function updateResetGate() {
+      resetBtn.disabled = (confirmReset.value.trim().toUpperCase() !== "RESET");
+    }
+  </script>
+</body>
+</html>
