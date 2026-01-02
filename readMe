@@ -1,0 +1,34 @@
+
+Canvas → MediaStream → Video → Picture-in-Picture
+
+first I need to create a canvas:
+ <canvas>
+
+then mediaStream:
+ in js you use canvas.captureStream(fps) to get mediaStream (similar to input from webcams)
+
+
+then video:
+    have a <video></video> object so it tricks browswer into thinking there's a live stream
+    video.srcObject = stream
+    -> I tried to use src but src takes a link while srcObject takes a mediaStream
+    had to look into URL.createObjectURL (since srcObject has limited support)
+
+to get this screen
+    video.requestPictureInPicture()
+
+
+    I thought this would be <easy class=""></easy>'
+    
+    
+maybe I need to revise my approach and make it
+canvas -> images -> https://www.geeksforgeeks.org/html/how-to-generate-video-from-images-in-html5/'
+
+
+the issue is that the animation is drawn before updating when it should be start capturing then the animations
+
+Then picture in picture works however now I wont be able to update the pip without being on the screen
+
+
+after struggling to figure it out I stumble upon
+"https://developer.chrome.com/docs/web-platform/document-picture-in-picture"

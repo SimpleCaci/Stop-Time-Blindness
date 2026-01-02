@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>OffscreenCanvas PiP Timer</title>
+  <style>
+    body { font-family: system-ui; }
+    #myCanvas { border: 1px solid #ccc; display: block; margin: 12px 0; }
+    /* Keep video "renderable" but invisible (NOT display:none) */
+    #myVideo {
+      width: 1px; height: 1px; opacity: 0;
+      position: fixed; left: -9999px; top: 0;
+    }
+  </style>
+</head>
+<body>
+  <button id="start" type="button">start</button>
+
+  <button id="stop">Stop</button>
+
+  <canvas id="myCanvas" width="640" height="360"></canvas>
+  <video id="myVideo" muted playsinline></video>
+
+  <script src="./main.js"></script>
+</body>
+</html>
