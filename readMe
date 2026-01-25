@@ -1,9 +1,82 @@
 # Stop-Time-Blindness
 
-![HTML](https://img.shields.io/badge/HTML5-82%25-orange)
-![JavaScript](https://img.shields.io/badge/JavaScript-ES6-yellow)
-![Canvas](https://img.shields.io/badge/Canvas-Animation-blue)
-![Picture--in--Picture](https://img.shields.io/badge/Picture--in--Picture-Browser%20API-purple)
-![Status](https://img.shields.io/badge/Project-Experimental-lightgrey)
+[HTML](https://img.shields.io/badge/HTML5-orange)
+[JavaScript](https://img.shields.io/badge/JavaScript-yellow)
+[Canvas](https://img.shields.io/badge/Canvas-Live%20Rendering-blue)
+[Picture-in-Picture](https://img.shields.io/badge/Picture--in--Picture-Browser%20API-purple)
+[Status](https://img.shields.io/badge/Status-Experimental-lightgrey)
 
-Stop-Time-Blindness is a lightweight productivity + mindfulness experiment exploring how to stream a live HTML canvas animation into a Picture-in-Picture (PiP) window. The core pipeline I’m working with is Canvas → MediaStream → Video → Picture-in-Picture. First I need to create a canvas (`<canvas>`). Then in JavaScript I can use `canvas.captureStream(fps)` to get a MediaStream, similar to input from webcams. Next I have a `<video></video>` element so it tricks the browser into thinking there’s a live stream, and I attach the stream with `video.srcObject = stream`. I originally tried using `src`, but `src` takes a link while `srcObject` takes a MediaStream, and I also had to look into `URL.createObjectURL()` since `srcObject` has limited support in some environments. To get the PiP screen, I call `video.requestPictureInPicture()`. At first I thought this would be something as simple as `<easy class=""></easy>`, but it obviously isn’t. The main issue I ran into is that the animation is drawn before updating, when it should instead start capturing first and then animate afterward, otherwise frames don’t update correctly. Picture-in-Picture works, however now I won’t be able to update the PiP unless the main tab is active, which creates limitations if I want continuously updating content off-screen. I may need to revise my approach into something like canvas → images → video generation (reference: https://www.geeksforgeeks.org/html/how-to-generate-video-from-images-in-html5/). After struggling with this for a while I stumbled upon Chrome’s Document Picture-in-Picture API (https://developer.chrome.com/docs/web-platform/document-picture-in-picture), which seems like the real solution if I want full control and live updating PiP content beyond just video streams. This project is currently experimental and the next steps are fixing animation timing, exploring Document PiP, and turning this into a reusable module for real-time canvas widgets.
+A lightweight productivity + mindfulness experiment exploring how to stream a live HTML canvas into Picture-in-Picture (PiP).
+
+---
+
+## Overview
+
+This repo explores a workflow:
+
+Canvas → MediaStream → Video → Picture-in-Picture
+
+Draw a live animation (timer/avatar UI) on a <canvas>, capture it as a MediaStream, feed it into a <video>, then open PiP from that video.
+
+---
+
+## How It Works
+
+Canvas
+
+<canvas></canvas>
+
+MediaStream
+
+const stream = canvas.captureStream(fps);
+
+This returns a MediaStream, similar to webcam input.
+
+Video Bridge
+
+A <video></video> element is used so the browser treats the stream as real video:
+
+video.srcObject = stream;
+
+src takes a URL, while srcObject takes a MediaStream.
+
+Picture-in-Picture
+
+await video.requestPictureInPicture();
+
+This opens the PiP window.
+
+---
+
+## Running the Project
+
+Recommended (Local Server)
+
+python -m http.server 8000
+
+Open:
+
+[http://localhost:8000/browswerPIP.html](http://localhost:8000/browswerPIP.html)
+
+---
+
+## Known Issues
+
+* Animation timing: capture must start before the draw loop
+* PiP updates may pause when the tab is inactive
+
+---
+
+## Key Discovery
+
+Chrome’s Document Picture-in-Picture API may be the real solution:
+
+[https://developer.chrome.com/docs/web-platform/document-picture-in-picture](https://developer.chrome.com/docs/web-platform/document-picture-in-picture)
+
+---
+
+## Next Steps
+
+* Fix capture timing
+* Explore Document PiP
+* Turn this into a reusable module for live canvas widgets
