@@ -1,34 +1,9 @@
+# Stop-Time-Blindness
 
-Canvas → MediaStream → Video → Picture-in-Picture
+![HTML](https://img.shields.io/badge/HTML5-82%25-orange)
+![JavaScript](https://img.shields.io/badge/JavaScript-ES6-yellow)
+![Canvas](https://img.shields.io/badge/Canvas-Animation-blue)
+![Picture--in--Picture](https://img.shields.io/badge/Picture--in--Picture-Browser%20API-purple)
+![Status](https://img.shields.io/badge/Project-Experimental-lightgrey)
 
-first I need to create a canvas:
- <canvas>
-
-then mediaStream:
- in js you use canvas.captureStream(fps) to get mediaStream (similar to input from webcams)
-
-
-then video:
-    have a <video></video> object so it tricks browswer into thinking there's a live stream
-    video.srcObject = stream
-    -> I tried to use src but src takes a link while srcObject takes a mediaStream
-    had to look into URL.createObjectURL (since srcObject has limited support)
-
-to get this screen
-    video.requestPictureInPicture()
-
-
-    I thought this would be <easy class=""></easy>'
-    
-    
-maybe I need to revise my approach and make it
-canvas -> images -> https://www.geeksforgeeks.org/html/how-to-generate-video-from-images-in-html5/'
-
-
-the issue is that the animation is drawn before updating when it should be start capturing then the animations
-
-Then picture in picture works however now I wont be able to update the pip without being on the screen
-
-
-after struggling to figure it out I stumble upon
-"https://developer.chrome.com/docs/web-platform/document-picture-in-picture"
+Stop-Time-Blindness is a lightweight productivity + mindfulness experiment exploring how to stream a live HTML canvas animation into a Picture-in-Picture (PiP) window. The core pipeline I’m working with is Canvas → MediaStream → Video → Picture-in-Picture. First I need to create a canvas (`<canvas>`). Then in JavaScript I can use `canvas.captureStream(fps)` to get a MediaStream, similar to input from webcams. Next I have a `<video></video>` element so it tricks the browser into thinking there’s a live stream, and I attach the stream with `video.srcObject = stream`. I originally tried using `src`, but `src` takes a link while `srcObject` takes a MediaStream, and I also had to look into `URL.createObjectURL()` since `srcObject` has limited support in some environments. To get the PiP screen, I call `video.requestPictureInPicture()`. At first I thought this would be something as simple as `<easy class=""></easy>`, but it obviously isn’t. The main issue I ran into is that the animation is drawn before updating, when it should instead start capturing first and then animate afterward, otherwise frames don’t update correctly. Picture-in-Picture works, however now I won’t be able to update the PiP unless the main tab is active, which creates limitations if I want continuously updating content off-screen. I may need to revise my approach into something like canvas → images → video generation (reference: https://www.geeksforgeeks.org/html/how-to-generate-video-from-images-in-html5/). After struggling with this for a while I stumbled upon Chrome’s Document Picture-in-Picture API (https://developer.chrome.com/docs/web-platform/document-picture-in-picture), which seems like the real solution if I want full control and live updating PiP content beyond just video streams. This project is currently experimental and the next steps are fixing animation timing, exploring Document PiP, and turning this into a reusable module for real-time canvas widgets.
