@@ -1,10 +1,11 @@
 # Stop-Time-Blindness
 
-[HTML](https://img.shields.io/badge/HTML5-orange)
-[JavaScript](https://img.shields.io/badge/JavaScript-yellow)
-[Canvas](https://img.shields.io/badge/Canvas-Live%20Rendering-blue)
-[Picture-in-Picture](https://img.shields.io/badge/Picture--in--Picture-Browser%20API-purple)
-[Status](https://img.shields.io/badge/Status-Experimental-lightgrey)
+![HTML](https://img.shields.io/badge/HTML5-orange)
+![JavaScript](https://img.shields.io/badge/JavaScript-yellow)
+![Canvas](https://img.shields.io/badge/Canvas-Live%20Rendering-blue)
+![Picture-in-Picture](https://img.shields.io/badge/Picture--in--Picture-Browser%20API-purple)
+![Status](https://img.shields.io/badge/Status-Experimental-lightgrey)
+
 
 A lightweight productivity + mindfulness experiment exploring how to stream a live HTML canvas into Picture-in-Picture (PiP).
 
