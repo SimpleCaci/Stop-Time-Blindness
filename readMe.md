@@ -1,4 +1,5 @@
-# [Stop-Time-Blindness] (https://simplecaci.github.io/Stop-Time-Blindness/)
+# [Stop-Time-Blindness] 
+(https://simplecaci.github.io/Stop-Time-Blindness/)
 
 ![HTML](https://img.shields.io/badge/HTML5-orange)
 ![JavaScript](https://img.shields.io/badge/JavaScript-yellow)
