@@ -18,7 +18,7 @@ This repo explores a workflow:
 
 Canvas → MediaStream → Video → Picture-in-Picture
 
-Draw a live animation (timer/avatar UI) on a <canvas>, capture it as a MediaStream, feed it into a <video>, then open PiP from that video.
+Draw a live animation (timer/avatar UI) on a -canvas-, capture it as a MediaStream, feed it into a -video-, then open PiP from that video.
 
 ---
 <img width="1307" height="714" alt="image" src="https://github.com/user-attachments/assets/729c172c-96b1-4e1c-bfed-84b235944e56" />
