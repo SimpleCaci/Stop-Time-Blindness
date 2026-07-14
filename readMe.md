@@ -1,86 +1,77 @@
-# [Stop-Time-Blindness] 
-(https://simplecaci.github.io/Stop-Time-Blindness/)
+# Stop Time Blindness
 
-![HTML](https://img.shields.io/badge/HTML5-orange)
-![JavaScript](https://img.shields.io/badge/JavaScript-yellow)
-![Canvas](https://img.shields.io/badge/Canvas-Live%20Rendering-blue)
-![Picture-in-Picture](https://img.shields.io/badge/Picture--in--Picture-Browser%20API-purple)
-![Status](https://img.shields.io/badge/Status-Experimental-lightgrey)
+A browser-based focus timer that keeps task progress visible in Picture-in-Picture and stores a private local work log.
 
+The project explores a practical question: can a small always-on-top visual make elapsed time easier to perceive while working in another application? It renders timer progress to a canvas, streams that canvas through a hidden video, and opens it in the browser's Picture-in-Picture window.
 
-A lightweight productivity + mindfulness experiment exploring how to stream a live HTML canvas into Picture-in-Picture (PiP).
+> **Status:** experimental but substantial prototype. Stopwatch, countdown, Pomodoro, local logs, exports, and PiP rendering are implemented; browser compatibility still varies.
 
----
+[Open the GitHub Pages experiment](https://simplecaci.github.io/Stop-Time-Blindness/) *(deployment not revalidated in this audit)*
 
-## Overview
+## Capabilities
 
-This repo explores a workflow:
+- stopwatch, countdown, and 25/5 Pomodoro modes
+- current-task and optional note fields
+- block-based visual progress
+- compact card and wide-bar layouts
+- canvas preview and always-on-top Picture-in-Picture display
+- local session logs with timestamps, targets, and overtime
+- CSV and JSON log downloads
+- typed confirmation before a full timer reset
 
-Canvas → MediaStream → Video → Picture-in-Picture
+## How it works
 
-Draw a live animation (timer/avatar UI) on a -canvas-, capture it as a MediaStream, feed it into a -video-, then open PiP from that video.
+```text
+timer state
+   -> canvas renderer
+   -> canvas.captureStream()
+   -> hidden video element
+   -> browser Picture-in-Picture window
+```
 
----
-<img width="1307" height="714" alt="image" src="https://github.com/user-attachments/assets/729c172c-96b1-4e1c-bfed-84b235944e56" />
-<img width="1134" height="671" alt="image" src="https://github.com/user-attachments/assets/47db0b24-05d3-4d45-ac24-5e8ab077590b" />
+Logs are stored in browser `localStorage`; no server or account is required.
 
-## How It Works
+## Run locally
 
-Canvas
+No build step is required:
 
-<canvas></canvas>
-
-MediaStream
-
-const stream = canvas.captureStream(fps);
-
-This returns a MediaStream, similar to webcam input.
-
-Video Bridge
-
-A <video></video> element is used so the browser treats the stream as real video:
-
-video.srcObject = stream;
-
-src takes a URL, while srcObject takes a MediaStream.
-
-Picture-in-Picture
-
-await video.requestPictureInPicture();
-
-This opens the PiP window.
-
----
-
-## Running the Project
-
-Recommended (Local Server)
-
+```bash
 python -m http.server 8000
+```
 
-Open:
+Open [http://localhost:8000](http://localhost:8000). Select **Prepare PiP** before **Enter PiP** because browsers require media initialization and a direct user gesture.
 
-[http://localhost:8000/browswerPIP.html](http://localhost:8000/browswerPIP.html)
+## Privacy
 
----
+Task names and notes remain in the current browser profile unless the user downloads or clears them. Shared computers and browser-profile synchronization may still expose that data. Avoid entering sensitive work details without understanding the browser's storage behavior.
 
-## Known Issues
+## Browser support
 
-* Animation timing: capture must start before the draw loop
-* PiP updates may pause when the tab is inactive
+Picture-in-Picture, `canvas.captureStream()`, autoplay, and user-gesture rules differ between browsers. The main implementation was written with Safari compatibility in mind, but current Chrome, Edge, Firefox, Safari, desktop, and mobile behavior has not been fully verified.
 
----
+## Validation status
 
-## Key Discovery
+No automated tests or CI workflow currently exist. Timer calculations, Pomodoro transitions, log serialization, and CSV escaping are suitable for unit tests. PiP behavior requires manual browser testing.
 
-Chrome’s Document Picture-in-Picture API may be the real solution:
+## Known limitations
 
-[https://developer.chrome.com/docs/web-platform/document-picture-in-picture](https://developer.chrome.com/docs/web-platform/document-picture-in-picture)
+- PiP support and media timing vary by browser
+- the implementation is concentrated in one large HTML file
+- timer accuracy after sleep/background throttling needs review
+- destructive log clearing needs stronger confirmation
+- accessibility, keyboard shortcuts, and reduced-motion behavior need testing
+- `browswerPIP.html` has a spelling error and appears to be an earlier experiment
+- root `main.js`, `worker.js`, and the inline implementation need consolidation
 
----
+## Roadmap
 
-## Next Steps
+- extract timer and log logic into testable modules
+- add clear unsupported-browser and PiP-failure states
+- restore active sessions safely after a refresh
+- add keyboard controls and reduced-motion preferences
+- compare standard PiP with Document Picture-in-Picture
+- consolidate prototype files and document GitHub Pages deployment
 
-* Fix capture timing
-* Explore Document PiP
-* Turn this into a reusable module for live canvas widgets
+## Authorship
+
+Created by [SimpleCaci](https://github.com/SimpleCaci). A project license has not yet been selected.
