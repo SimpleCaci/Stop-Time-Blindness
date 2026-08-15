@@ -51,7 +51,7 @@ Picture-in-Picture, `canvas.captureStream()`, autoplay, and user-gesture rules d
 
 ## Validation status
 
-No automated tests or CI workflow currently exist. Timer calculations, Pomodoro transitions, log serialization, and CSV escaping are suitable for unit tests. PiP behavior requires manual browser testing.
+GitHub Actions syntax-checks the application and worker JavaScript on every push and pull request. Timer calculations, Pomodoro transitions, log serialization, and CSV escaping are still suitable candidates for unit tests. Picture-in-Picture behavior requires manual browser testing.
 
 ## Known limitations
 
