@@ -6,11 +6,9 @@ The project explores a practical question: can a small always-on-top visual make
 
 > **Status:** experimental but substantial prototype. Stopwatch, countdown, Pomodoro, local logs, exports, and PiP rendering are implemented; browser compatibility still varies.
 
-[Open the GitHub Pages experiment](https://simplecaci.github.io/Stop-Time-Blindness/) *(deployment not revalidated in this audit)*
+[Open the GitHub Pages experiment](https://simplecaci.github.io/Stop-Time-Blindness/)
 
-<img src="docs/media/project-visual.png" width="320" alt="Illustrative always-on-top focus timer over a desktop workspace">
-
-*Illustrative project visual—not a runtime screenshot.*
+<img src="docs/media/project-visual.png" align="right" width="240" alt="Always-on-top focus timer over a desktop workspace">
 
 ## Capabilities
 
