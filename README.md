@@ -8,6 +8,10 @@ The project explores a practical question: can a small always-on-top visual make
 
 [Open the GitHub Pages experiment](https://simplecaci.github.io/Stop-Time-Blindness/) *(deployment not revalidated in this audit)*
 
+<img src="docs/media/project-visual.png" width="320" alt="Illustrative always-on-top focus timer over a desktop workspace">
+
+*Illustrative project visual—not a runtime screenshot.*
+
 ## Capabilities
 
 - stopwatch, countdown, and 25/5 Pomodoro modes
