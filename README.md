@@ -8,7 +8,11 @@ The project explores a practical question: can a small always-on-top visual make
 
 [Open the GitHub Pages experiment](https://simplecaci.github.io/Stop-Time-Blindness/)
 
-<img src="docs/media/project-visual.png" align="right" width="240" alt="Always-on-top focus timer over a desktop workspace">
+![Current browser timer controls and on-page display](docs/media/timer-controls.jpg)
+
+*Local browser screenshot with the default sample task. The floating PiP window is not shown.*
+
+[Run locally](#run-locally) · [Browser support](#browser-support) · [Limitations](#known-limitations)
 
 ## Capabilities
 
@@ -62,7 +66,7 @@ GitHub Actions syntax-checks the application and worker JavaScript on every push
 - timer accuracy after sleep/background throttling needs review
 - destructive log clearing needs stronger confirmation
 - accessibility, keyboard shortcuts, and reduced-motion behavior need testing
-- `browswerPIP.html` has a spelling error and appears to be an earlier experiment
+- `browser-pip-prototype.html` is a separate Document Picture-in-Picture experiment; `index.html` is the main application
 - root `main.js`, `worker.js`, and the inline implementation need consolidation
 
 ## Roadmap
